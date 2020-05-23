@@ -1,0 +1,71 @@
+queue:
+  name: Hosted Ubuntu 1604
+ 
+trigger:
+  - Development
+  - staging
+  - Production
+ 
+variables:
+  ${{ if eq(variables['Build.SourceBranchName'], 'Production') }}:
+    ContainerRegistry: 'thedlvrcosixtyseconds.azurecr.io'
+    ServiceName: api/production
+    env: 'production'
+  ${{ if eq(variables['Build.SourceBranchName'], 'staging') }}:
+    ContainerRegistry: 'thedlvrcosixtyseconds.azurecr.io'
+    ServiceName: api/staging
+    env: 'staging'
+  ${{ if eq(variables['Build.SourceBranchName'], 'Development') }}:
+    ContainerRegistry: 'thedlvrcosixtyseconds.azurecr.io'
+    ServiceName: api/develop
+    env: 'develop'
+
+  ServiceConnection: 'The DLVR'
+  ImageName: '$(ServiceName):$(Build.BuildId)'
+  ImageLatest: '$(ServiceName):latest'
+ 
+steps: 
+- task: Docker@1
+  displayName: Build image
+  inputs:
+    command: Build an image
+    dockerFile: '$(Build.SourcesDirectory)/src/Dockerfile'
+    imageName: $(ImageName)
+  continueOnError: true
+ 
+- task: Docker@1
+  displayName: Tag image with build nbr as Version
+  inputs:
+    command: Tag image
+    imageName: $(ImageName)
+    arguments: $(ContainerRegistry)/$(ImageName)
+ 
+- task: Docker@1
+  displayName: Tag image as latest
+  inputs:
+    command: Tag image
+    imageName: $(ImageName)
+    arguments: $(ContainerRegistry)/$(ImageLatest)
+ 
+- task: Docker@1
+  displayName: Container registry login
+  inputs:
+    command: login
+    azureSubscriptionEndpoint: $(ServiceConnection)
+    azureContainerRegistry: $(ContainerRegistry)
+ 
+- task: Docker@1
+  displayName: Push image (BuildId)
+  inputs:
+    command: Push an image
+    azureSubscriptionEndpoint: $(ServiceConnection)
+    azureContainerRegistry: $(ContainerRegistry)
+    imageName: $(ContainerRegistry)/$(ImageName)
+ 
+- task: Docker@1
+  displayName: Push image (latest)
+  inputs:
+    command: Push an image
+    azureSubscriptionEndpoint: $(ServiceConnection)
+    azureContainerRegistry: $(ContainerRegistry)
+    imageName: $(ContainerRegistry)/$(ImageLatest)
